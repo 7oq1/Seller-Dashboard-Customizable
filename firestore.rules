@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isBoss() {
+      return isSignedIn() && (
+        request.auth.token.email == 'aryan075sharma@gmail.com' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'BOSS')
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'aryan075sharma@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email', 'role', 'addedAt']) &&
+             data.email is string &&
+             data.role in ['BOSS', 'STAFF'] &&
+             data.addedAt == request.time;
+    }
+    function isValidSale(data) {
+      return data.keys().hasAll(['soldFor', 'soldTo', 'customerName', 'dateSoldOn', 'expiryDate', 'assignedBy', 'createdAt']) &&
+             data.soldFor is number && data.soldFor >= 0 &&
+             data.soldTo is string && data.soldTo.size() <= 200 &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.dateSoldOn is timestamp &&
+             data.expiryDate is timestamp &&
+             data.assignedBy is string &&
+             data.createdAt == request.time;
+    }
+
+    function isValidExpense(data) {
+      return data.keys().hasAll(['amount', 'description', 'date', 'category', 'createdAt']) &&
+             data.amount is number && data.amount >= 0 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.date is timestamp &&
+             data.category is string &&
+             data.createdAt == request.time;
+    }
+
+    // --- Rules ---
+
+    match /admins/{adminUid} {
+      allow read: if isSignedIn();
+      allow write: if isBoss() && isValidAdmin(incoming()) && isValidId(adminUid);
+    }
+
+    match /sales/{saleId} {
+      allow list, get: if isAdmin();
+      allow create: if isAdmin() && isValidSale(incoming()) && isValidId(saleId);
+      allow update: if isAdmin() && isValidSale(incoming()) && (
+        // Allow general updates
+        incoming().diff(existing()).affectedKeys().hasOnly(['soldFor', 'soldTo', 'serverLink', 'customerName', 'dateSoldOn', 'expiryDate', 'assignedBy', 'serverSpecs'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow list, get: if isAdmin();
+      allow create: if isAdmin() && isValidExpense(incoming()) && isValidId(expenseId);
+      allow update: if isAdmin() && isValidExpense(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'description', 'date', 'category'])
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}

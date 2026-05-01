@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "Sale": {
+      "title": "Server Sale",
+      "description": "Records of servers sold to customers",
+      "type": "object",
+      "properties": {
+        "soldFor": { "type": "number", "description": "Price the server was sold for" },
+        "soldTo": { "type": "string", "description": "Identifier for the customer (e.g. email or ID)" },
+        "serverLink": { "type": "string", "format": "uri", "description": "URL to the server management" },
+        "customerName": { "type": "string", "description": "Name of the customer" },
+        "dateSoldOn": { "type": "string", "format": "date-time", "description": "The date the sale occurred" },
+        "expiryDate": { "type": "string", "format": "date-time", "description": "When the server subscription expires" },
+        "assignedBy": { "type": "string", "description": "UID or name of the admin who made the sale" },
+        "serverSpecs": { "type": "string", "description": "Technical specifications of the server" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["soldFor", "soldTo", "customerName", "dateSoldOn", "expiryDate", "assignedBy"]
+    },
+    "Expense": {
+      "title": "Business Expense",
+      "description": "Records of operational costs",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number", "description": "Cost amount" },
+        "description": { "type": "string", "description": "What the money was spent on" },
+        "date": { "type": "string", "format": "date-time", "description": "Date of expense" },
+        "category": { "type": "string", "description": "Expense category (e.g. Infrastructure, Marketing)" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "description", "date", "category"]
+    },
+    "Admin": {
+      "title": "Administrator",
+      "description": "Authorized users who can access the dashboard",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["BOSS", "STAFF"] },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "addedAt"]
+    }
+  },
+  "firestore": {
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Collection of all server sales"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Collection of all business expenses"
+    },
+    "/admins/{adminUid}": {
+      "schema": "Admin",
+      "description": "List of authorized administrator UIDs"
+    }
+  }
+}
